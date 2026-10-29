@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Калькулятор веса и доставки</title>
+    <style>
+        :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+        body { max-width: 600px; margin: 20px auto; padding: 0 16px; color: #1f2937; background: #f3f4f6; }
+        h1 { font-size: 1.3rem; text-align: center; margin-bottom: 20px; }
+        .card { background: #fff; border-radius: 14px; padding: 18px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,.05); }
+        h2 { font-size: 1.05rem; margin-top: 0; margin-bottom: 14px; color: #111827; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
+        label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: #4b5563; }
+        input { padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.95rem; }
+        input:focus { outline: 2px solid #93c5fd; border-color: transparent; }
+        .highlight { background: #eff6ff; padding: 12px; border-radius: 8px; margin-top: 16px; border: 1px solid #bfdbfe; }
+        .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #e5e7eb; font-size: 0.95rem; }
+        .row:last-child { border-bottom: none; font-weight: bold; font-size: 1.05rem; color: #111827; padding-top: 10px; }
+        .value { font-variant-numeric: tabular-nums; }
+        .note { font-size: 0.8rem; color: #6b7280; margin-top: 8px; line-height: 1.4; }
+    </style>
+</head>
+<body>
+    <h1>Калькулятор доставки и веса</h1>
+    <div class="card">
+        <h2>1. Фактический вес посылки</h2>
+        <div class="grid">
+            <label>Вес 1 кроссовка (г) <input id="shoeWeight" type="number" min="0" value="450" oninput="calculate()"> </label>
+            <label>Вес коробки (г) <input id="boxWeight" type="number" min="0" value="400" oninput="calculate()"> </label>
+            <label>Доп. упаковка (г) <input id="extraWeight" type="number" min="0" value="51" oninput="calculate()"> </label>
+        </div>
+        <div class="highlight">
+            <div class="row"><span>Вес пары без коробки</span> <span class="value" id="pairWeight">900 г</span></div>
+            <div class="row"><span>Фактический вес (с упаковкой)</span> <span class="value" id="actualWeight">1.351 кг</span></div>
+        </div>
+    </div>
+    <div class="card">
+        <h2>2. Габариты и тариф доставки</h2>
+        <div class="grid">
+            <label>Длина (см) <input id="length" type="number" min="0" value="27" oninput="calculate()"> </label>
+            <label>Ширина (см) <input id="width" type="number" min="0" value="17" oninput="calculate()"> </label>
+            <label>Высота (см) <input id="height" type="number" min="0" value="17" oninput="calculate()"> </label>
+            <label>Делитель объема <input id="divisor" type="number" min="1" value="6000" oninput="calculate()"> </label>
+        </div>
+        <div class="grid" style="margin-top: 12px;">
+            <label>Тариф за 1-е 0.1 кг (¥) <input id="basePrice" type="number" min="0" value="3" step="0.1" oninput="calculate()"> </label>
+            <label>Тариф за доп. 0.1 кг (¥) <input id="addPrice" type="number" min="0" value="3.5" step="0.1" oninput="calculate()"> </label>
+        </div>
+        <div class="highlight" style="background: #fff7ed; border-color: #ffedd5;">
+            <div class="row"><span>Объемный вес</span> <span class="value" id="volWeight">1.301 кг</span></div>
+            <div class="row"><span>Расчетный (оплачиваемый) вес</span> <span class="value" id="billWeight">1.351 кг</span></div>
+            <div class="row" style="color: #ea580c;"><span>Стоимость доставки</span> <span class="value" id="totalCost">¥ 48.50</span></div>
+        </div>
+        <div class="note">Расчет стоимости идет по шагам: первые 100 грамм стоят базовую цену, а остаток веса округляется в большую сторону до 100 грамм и умножается на цену доп. веса.</div>
+    </div>
+
+    <script>
+        function calculate() {
+            const getValue = id => parseFloat(document.getElementById(id).value) || 0;
+            const shoe = getValue('shoeWeight');
+            const box = getValue('boxWeight');
+            const extra = getValue('extraWeight');
+            const l = getValue('length');
+            const w = getValue('width');
+            const h = getValue('height');
+            const divisor = getValue('divisor') || 6000;
+            const basePrice = getValue('basePrice');
+            const addPrice = getValue('addPrice');
+
+            const pairWeightG = shoe * 2;
+            const actualWeightKg = (pairWeightG + box + extra) / 1000;
+            const volWeightKg = (l * w * h) / divisor;
+            const billWeightKg = Math.max(actualWeightKg, volWeightKg);
+
+            let totalCost = 0;
+            if (billWeightKg > 0) {
+                totalCost = basePrice;
+                const remainingWeight = billWeightKg - 0.1;
+                if (remainingWeight > 0) {
+                    const extraBlocks = Math.ceil((remainingWeight / 0.1) - 1e-6);
+                    totalCost += extraBlocks * addPrice;
+                }
+            }
+
+            document.getElementById('pairWeight').textContent = pairWeightG + ' г';
+            document.getElementById('actualWeight').textContent = actualWeightKg.toFixed(3) + ' кг';
+            document.getElementById('volWeight').textContent = volWeightKg.toFixed(3) + ' кг';
+            document.getElementById('billWeight').textContent = billWeightKg.toFixed(3) + ' кг';
+            document.getElementById('totalCost').textContent = '¥ ' + totalCost.toFixed(2);
+        }
+        document.addEventListener('DOMContentLoaded', calculate);
+    </script>
+</body>
+</html>
